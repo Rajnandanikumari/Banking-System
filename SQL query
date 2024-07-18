@@ -1,0 +1,123 @@
+1.>Create Customers table
+CREATE TABLE Customers (
+    customer_id INT PRIMARY KEY IDENTITY(1,1),
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    dob DATE NOT NULL,
+    address VARCHAR(100) NOT NULL,
+    phone VARCHAR(15) NOT NULL,
+    email VARCHAR(50) NOT NULL
+);
+
+2.>Create Accounts table
+CREATE TABLE Accounts (
+    account_id INT PRIMARY KEY IDENTITY(1,1),
+    customer_id INT NOT NULL,
+    account_type VARCHAR(10) NOT NULL,
+    balance DECIMAL(15, 2) NOT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (customer_id) REFERENCES Customers(customer_id)
+);
+
+3.> Create Transactions table
+CREATE TABLE Transactions (
+    transaction_id INT PRIMARY KEY IDENTITY(1,1),
+    account_id INT NOT NULL,
+    transaction_type VARCHAR(10) NOT NULL,
+    amount DECIMAL(15, 2) NOT NULL,
+    transaction_date DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (account_id) REFERENCES Accounts(account_id)
+);
+
+4.> Stored Procedure to create a new customer
+CREATE PROCEDURE CreateCustomer
+    @FirstName VARCHAR(50),
+    @LastName VARCHAR(50),
+    @DOB DATE,
+    @Address VARCHAR(100),
+    @Phone VARCHAR(15),
+    @Email VARCHAR(50)
+AS
+BEGIN
+    INSERT INTO Customers (first_name, last_name, dob, address, phone, email)
+    VALUES (@FirstName, @LastName, @DOB, @Address, @Phone, @Email);
+END;
+GO
+
+5.> Stored Procedure to open a new account
+CREATE PROCEDURE OpenAccount
+    @CustomerId INT,
+    @AccountType VARCHAR(10),
+    @InitialDeposit DECIMAL(15, 2)
+AS
+BEGIN
+    INSERT INTO Accounts (customer_id, account_type, balance)
+    VALUES (@CustomerId, @AccountType, @InitialDeposit);
+END;
+GO
+
+6.> Stored Procedure to deposit money
+CREATE PROCEDURE DepositMoney
+    @AccountId INT,
+    @Amount DECIMAL(15, 2)
+AS
+BEGIN
+    UPDATE Accounts
+    SET balance = balance + @Amount
+    WHERE account_id = @AccountId;
+
+    INSERT INTO Transactions (account_id, transaction_type, amount)
+    VALUES (@AccountId, 'Deposit', @Amount);
+END;
+GO
+
+7.> Stored Procedure to withdraw money
+CREATE PROCEDURE WithdrawMoney
+    @AccountId INT,
+    @Amount DECIMAL(15, 2)
+AS
+BEGIN
+    UPDATE Accounts
+    SET balance = balance - @Amount
+    WHERE account_id = @AccountId;
+
+    INSERT INTO Transactions (account_id, transaction_type, amount)
+    VALUES (@AccountId, 'Withdraw', @Amount);
+END;
+GO
+
+8.> Stored Procedure to transfer money
+CREATE PROCEDURE TransferMoney
+    @FromAccountId INT,
+    @ToAccountId INT,
+    @Amount DECIMAL(15, 2)
+AS
+BEGIN
+    BEGIN TRANSACTION;
+    UPDATE Accounts
+    SET balance = balance - @Amount
+    WHERE account_id = @FromAccountId;
+
+    UPDATE Accounts
+    SET balance = balance + @Amount
+    WHERE account_id = @ToAccountId;
+
+    INSERT INTO Transactions (account_id, transaction_type, amount)
+    VALUES (@FromAccountId, 'Transfer Out', @Amount);
+
+    INSERT INTO Transactions (account_id, transaction_type, amount)
+    VALUES (@ToAccountId, 'Transfer In', @Amount);
+    COMMIT TRANSACTION;
+END;
+GO
+
+9.>Stored Procedure to view transaction history
+CREATE PROCEDURE ViewTransactionHistory
+    @AccountId INT
+AS
+BEGIN
+    SELECT * FROM Transactions
+    WHERE account_id = @AccountId
+    ORDER BY transaction_date DESC;
+END;
+GO
